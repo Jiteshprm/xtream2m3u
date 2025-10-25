@@ -1,0 +1,31 @@
+[Unit]
+Description=Xtream 2 M3U server
+After=network.target
+
+[Service]
+Type=simple
+
+# Path to the Python interpreter inside the venv
+ExecStart=/home/pi/xtream2m3u/venv/bin/python /home/pi/xtream2m3u/run.py
+
+# Optional: working directory for relative paths
+WorkingDirectory=/home/pi/xtream2m3u
+
+# The user and group that should run the script
+User=pi
+Group=pi
+
+# Environment variables (optional)
+#Environment="PATH=/home/username/projects/venv/bin"
+#Environment="VIRTUAL_ENV=/home/username/projects/venv"
+
+# Restart automatically if the script fails
+Restart=on-failure
+RestartSec=5
+
+# Optional logging
+#StandardOutput=append:/var/log/my_script.log
+#StandardError=append:/var/log/my_script.err
+
+[Install]
+WantedBy=multi-user.target
