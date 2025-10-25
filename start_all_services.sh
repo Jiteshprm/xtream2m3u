@@ -13,3 +13,4 @@ systemctl daemon-reload
 systemctl enable xtream2m3u.service
 systemctl start xtream2m3u.service
 
+#journalctl -u xtream2m3u.service -f
