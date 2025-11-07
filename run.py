@@ -618,6 +618,7 @@ def generate_m3u():
         no_stream_proxy = str(data.get("nostreamproxy", "")).lower() == "true"
         include_vod = str(data.get("include_vod", "false")).lower() == "true"
         include_channel_id = str(data.get("include_channel_id", "false")).lower() == "true"
+        channel_id_tag = str(data.get("channel_id_tag", "channel-id"))
         logger.info("🔄 Processing POST request for M3U generation")
     else:
         unwanted_groups = parse_group_list(request.args.get("unwanted_groups", ""))
@@ -625,6 +626,7 @@ def generate_m3u():
         no_stream_proxy = request.args.get("nostreamproxy", "").lower() == "true"
         include_vod = request.args.get("include_vod", "false").lower() == "true"
         include_channel_id = request.args.get("include_channel_id", "false") == "true"
+        channel_id_tag = request.args.get("channel_id_tag", "channel-id")
         logger.info("🔄 Processing GET request for M3U generation")
 
     # For M3U generation, warn about VOD performance impact
@@ -741,7 +743,7 @@ def generate_m3u():
             if include_channel_id:
                 channel_id = stream.get("epg_channel_id")
                 if channel_id:
-                    tags.append(f'channel-id="{channel_id}"')
+                    tags.append(f'{channel_id_tag}="{channel_id}"')
 
             # Create the stream URL based on content type
             if content_type == "live":
