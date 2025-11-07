@@ -617,12 +617,16 @@ def generate_m3u():
         wanted_groups = parse_group_list(data.get("wanted_groups", ""))
         no_stream_proxy = str(data.get("nostreamproxy", "")).lower() == "true"
         include_vod = str(data.get("include_vod", "false")).lower() == "true"
+        include_channel_id = str(data.get("include_channel_id", "false")).lower() == "true"
+        channel_id_tag = str(data.get("channel_id_tag", "channel-id"))
         logger.info("🔄 Processing POST request for M3U generation")
     else:
         unwanted_groups = parse_group_list(request.args.get("unwanted_groups", ""))
         wanted_groups = parse_group_list(request.args.get("wanted_groups", ""))
         no_stream_proxy = request.args.get("nostreamproxy", "").lower() == "true"
         include_vod = request.args.get("include_vod", "false").lower() == "true"
+        include_channel_id = request.args.get("include_channel_id", "false") == "true"
+        channel_id_tag = request.args.get("channel_id_tag", "channel-id")
         logger.info("🔄 Processing GET request for M3U generation")
 
     # For M3U generation, warn about VOD performance impact
@@ -722,12 +726,24 @@ def generate_m3u():
         if include_stream:
             included_groups.add(group_title)
 
+            tags = [
+                f'tvg-name="{stream_name}"',
+                f'group-title="{group_title}"',
+            ]
+
             # Handle logo URL - proxy only if stream proxying is enabled
             original_logo = stream.get("stream_icon", "")
             if original_logo and not no_stream_proxy:
                 logo_url = f"{proxy_url}/image-proxy/{encode_url(original_logo)}"
             else:
                 logo_url = original_logo
+            tags.append(f'tvg-logo="{logo_url}"')
+
+            # Handle channel id if enabled
+            if include_channel_id:
+                channel_id = stream.get("epg_channel_id")
+                if channel_id:
+                    tags.append(f'{channel_id_tag}="{channel_id}"')
 
             # Create the stream URL based on content type
             if content_type == "live":
@@ -756,7 +772,7 @@ def generate_m3u():
 
             # Add stream to playlist
             m3u_playlist += (
-                f'#EXTINF:0 tvg-name="{stream_name}" group-title="{group_title}" tvg-logo="{logo_url}",{stream_name}\n'
+                f'#EXTINF:0 {" ".join(tags)},{stream_name}\n'
             )
             m3u_playlist += f"{stream_url}\n"
 

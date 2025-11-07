@@ -118,6 +118,8 @@ GET /m3u
 - `wanted_groups` (optional): A comma-separated list of group names to include (takes precedence over unwanted_groups)
 - `nostreamproxy` (optional): Set to 'true' to disable stream proxying
 - `proxy_url` (optional): Custom base URL for proxied content (overrides auto-detection)
+- `include_channel_id` (optional): Set to 'true' to include `epg_channel_id` in M3U, useful for [Channels](https://getchannels.com)
+- `channel_id_tag` (optional): Name of the tag to use for `epg_channel_id` data in M3U, defaults to `channel-id`
 
 Note: For `unwanted_groups` and `wanted_groups`, you can use wildcard patterns with `*` and `?` characters. For example:
 - `US*` will match all groups starting with "US"
