@@ -1,0 +1,14 @@
+
+  git clone https://github.com/Jiteshprm/xtream2m3u.git
+  cd xtream2m3u/
+  python3 -m venv venv
+  cd venv/bin/
+  source activate
+  cd ../..
+  pip install -r requirements.txt 
+  python /home/birdofprey/xtream2m3u/run.py --port 3333
+
+  chmod +x *.sh
+  sudo ./start_all_services.sh 
+  systemctl status xtream2m3u.service
+
