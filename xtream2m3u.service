@@ -6,14 +6,14 @@ After=network.target
 Type=simple
 
 # Path to the Python interpreter inside the venv
-ExecStart=/home/pi/xtream2m3u/venv/bin/python /home/pi/xtream2m3u/run.py --port 3333
+ExecStart=/home/birdofprey/xtream2m3u/venv/bin/python /home/birdofprey/xtream2m3u/run.py --port 3333
 
 # Optional: working directory for relative paths
-WorkingDirectory=/home/pi/xtream2m3u
+WorkingDirectory=/home/birdofprey/xtream2m3u
 
 # The user and group that should run the script
-User=pi
-Group=pi
+User=birdofprey
+Group=birdofprey
 
 # Environment variables (optional)
 #Environment="PATH=/home/username/projects/venv/bin"
