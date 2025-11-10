@@ -6,7 +6,7 @@
   source activate
   cd ../..
   pip install -r requirements.txt 
-  python /home/birdofprey/xtream2m3u/run.py --port 3333
+  python /root/xtream2m3u/run.py --port 3333
 
   chmod +x *.sh
   sudo ./start_all_services.sh 
