@@ -1,6 +1,7 @@
 
   git clone https://github.com/Jiteshprm/xtream2m3u.git
   cd xtream2m3u/
+  git checkout addservice_dedirock
   python3 -m venv venv
   cd venv/bin/
   source activate
