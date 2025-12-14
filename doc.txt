@@ -14,3 +14,6 @@
   sudo ./start_all_services.sh 
   systemctl status xtream2m3u.service
 
+  Connect VPN to Dedirock-Vultr
+  http://10.8.0.1:3333/
+
