@@ -13,6 +13,12 @@ from app.utils import setup_custom_dns
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize custom DNS resolver globally so it runs for Gunicorn too
+setup_custom_dns()
+
+# Create the Flask app globally so Gunicorn can find 'app'
+app = create_app()
+
 
 def main():
     """Main entry point for the application"""
@@ -22,12 +28,6 @@ def main():
         "--port", type=int, default=5000, help="Port number to run the app on (default: 5000)"
     )
     args = parser.parse_args()
-
-    # Initialize custom DNS resolver
-    setup_custom_dns()
-
-    # Create the Flask app
-    app = create_app()
 
     # Run the app
     logger.info(f"Starting Xtream2M3U server on port {args.port}")
