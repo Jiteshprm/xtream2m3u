@@ -30,7 +30,9 @@ const elements = {
     modalSummary: document.getElementById('modalSummary'),
     results: document.getElementById('results'),
     downloadLink: document.getElementById('finalDownloadLink'),
-    searchInput: document.getElementById('categorySearch')
+    searchInput: document.getElementById('categorySearch'),
+    apiBuilderModal: document.getElementById('apiBuilderModal'),
+    generatedApiUrl: document.getElementById('generatedApiUrl')
 };
 
 // Step Navigation
@@ -330,6 +332,109 @@ function filterCategories(searchTerm) {
     });
 }
 
+// API Builder
+function showApiBuilder() {
+    elements.apiBuilderModal.classList.add('active');
+    updateApiUrl();
+}
+
+function closeApiBuilder() {
+    elements.apiBuilderModal.classList.remove('active');
+}
+
+function updateApiUrl() {
+    const apiType = document.querySelector('input[name="apiType"]:checked').value;
+    const noStreamProxy = document.getElementById('apiNoStreamProxy').checked;
+    const includeChannelId = document.getElementById('apiIncludeChannelId').checked;
+    const proxyUrl = document.getElementById('apiProxyUrl').value.trim();
+    const channelIdTag = document.getElementById('apiChannelIdTag').value.trim();
+
+    // Toggle options visibility
+    const m3uOptions = document.getElementById('m3uOptions');
+    if (apiType === 'm3u') {
+        m3uOptions.style.display = 'block';
+    } else {
+        m3uOptions.style.display = 'none';
+    }
+
+    const baseUrl = window.location.origin;
+    const params = new URLSearchParams({
+        url: state.credentials.url,
+        username: state.credentials.username,
+        password: state.credentials.password
+    });
+
+    if (state.credentials.includeVod) {
+        // Backend expects 'include_vod'
+        params.append('include_vod', 'true');
+    }
+
+    // Smart filtering: Omit filter params if they result in "All Content"
+    const categories = Array.from(state.selectedCategories);
+    const totalCategories = state.categories.length;
+
+    // Logic for omitting params:
+    // If Filter Mode is INCLUDE:
+    //   - If ALL categories are selected -> Omit (Implicitly Include All)
+    //   - If SOME categories are selected -> Include 'wanted_groups'
+    //   - If NO categories are selected -> (Technically this would result in empty playlist, but usually implies 'Select something'.
+    //     However, if we want to follow strict logic: Include 'wanted_groups=' (empty) or just don't append.
+    //     Let's assume user wants *something*. If 0 selected in include mode, the URL will produce nothing anyway.
+
+    // If Filter Mode is EXCLUDE:
+    //   - If NO categories are selected -> Omit (Implicitly Exclude None = Include All)
+    //   - If SOME categories are selected -> Include 'unwanted_groups'
+
+    if (categories.length > 0) {
+        if (state.filterMode === 'include') {
+            // Only append if NOT all are selected
+            if (categories.length < totalCategories) {
+                params.append('wanted_groups', categories.join(','));
+            }
+        } else {
+            // Exclude mode: Append unwanted groups
+            params.append('unwanted_groups', categories.join(','));
+        }
+    } else {
+        // Categories length is 0
+        if (state.filterMode === 'include') {
+            // Include mode + 0 selected = Empty playlist?
+            // Or does user imply "All"? Usually UI starts empty.
+            // If we omit, it defaults to ALL.
+            // If user explicitly selected NOTHING in "Include Mode", they probably don't want ALL.
+            // But for the API URL builder, let's assume if they selected nothing, they haven't configured filters, so defaulting to ALL (omitting) might be safer or adding an empty param.
+            // But let's stick to the prompt: "we should not need to actually include all the categories, we should be able to just ommit it"
+            // This implies the user selected ALL.
+
+            // So if count == 0 in include mode, maybe they haven't started.
+            // But if they selected ALL (via Select All), count == total.
+            // The check `categories.length < totalCategories` above handles the "Selected All" case for Include mode.
+        }
+    }
+
+    if (apiType === 'm3u') {
+        if (noStreamProxy) params.append('nostreamproxy', 'true');
+        if (includeChannelId) params.append('include_channel_id', 'true');
+        if (proxyUrl) params.append('proxy_url', proxyUrl);
+        if (channelIdTag) params.append('channel_id_tag', channelIdTag);
+
+        elements.generatedApiUrl.textContent = `${baseUrl}/m3u?${params.toString()}`;
+    } else {
+        if (proxyUrl) params.append('proxy_url', proxyUrl);
+        elements.generatedApiUrl.textContent = `${baseUrl}/xmltv?${params.toString()}`;
+    }
+}
+
+function copyApiUrl() {
+    const url = elements.generatedApiUrl.textContent;
+    navigator.clipboard.writeText(url).then(() => {
+        const btn = document.querySelector('.btn-copy');
+        const originalText = btn.textContent;
+        btn.textContent = '✅';
+        setTimeout(() => btn.textContent = originalText, 1500);
+    });
+}
+
 // Confirmation & Generation
 function showConfirmation() {
     const count = state.selectedCategories.size;
@@ -470,6 +575,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Close modal on outside click
     elements.confirmationModal.addEventListener('click', (e) => {
         if (e.target === elements.confirmationModal) closeModal();
+    });
+
+    elements.apiBuilderModal.addEventListener('click', (e) => {
+        if (e.target === elements.apiBuilderModal) closeApiBuilder();
     });
 
     // Input trim handlers

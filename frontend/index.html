@@ -113,6 +113,9 @@
                         <button class="btn btn-secondary" onclick="goBackToStep1()">
                             Back
                         </button>
+                        <button class="btn btn-secondary" onclick="showApiBuilder()">
+                            🛠️ API Builder
+                        </button>
                         <button class="btn btn-success" onclick="showConfirmation()">
                             Generate Playlist
                         </button>
@@ -140,6 +143,75 @@
                 </div>
             </div>
         </section>
+
+        <!-- API Builder Modal -->
+        <div class="modal" id="apiBuilderModal">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h3>🛠️ API URL Builder</h3>
+                    <p class="subtitle" style="font-size: 0.9rem; margin-bottom: 1rem;">Use this URL to fetch your custom playlist directly from any player.</p>
+                </div>
+
+                <div class="api-options">
+                   <div class="form-group">
+                       <label>Endpoint Type</label>
+                       <div class="filter-mode">
+                           <label>
+                               <input type="radio" name="apiType" value="m3u" checked onchange="updateApiUrl()">
+                               <span>M3U Playlist</span>
+                           </label>
+                           <label>
+                               <input type="radio" name="apiType" value="xmltv" onchange="updateApiUrl()">
+                               <span>XMLTV EPG</span>
+                           </label>
+                       </div>
+                   </div>
+
+                   <!-- Additional Options (only for M3U) -->
+                   <div id="m3uOptions">
+                       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                           <div class="checkbox-wrapper" title="Disables stream proxying. URLs will point directly to the IPTV provider.">
+                               <label class="checkbox-label" style="padding: 0.5rem;">
+                                   <input type="checkbox" id="apiNoStreamProxy" checked onchange="updateApiUrl()">
+                                   <div class="checkmark"></div>
+                                   <div class="checkbox-text"><small>No Stream Proxy</small></div>
+                               </label>
+                           </div>
+                           <div class="checkbox-wrapper" title="Includes the unique 'channel-id' tag in the playlist. Useful for some players.">
+                               <label class="checkbox-label" style="padding: 0.5rem;">
+                                   <input type="checkbox" id="apiIncludeChannelId" onchange="updateApiUrl()">
+                                   <div class="checkmark"></div>
+                                   <div class="checkbox-text"><small>Include Channel ID</small></div>
+                               </label>
+                           </div>
+                       </div>
+
+                       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                           <div class="form-group" style="margin-bottom: 0;" title="Optional: Custom base URL for proxied content. Useful for reverse proxies.">
+                               <label style="font-size: 0.8rem; margin-bottom: 0.25rem;">Proxy URL (Optional)</label>
+                               <input type="text" id="apiProxyUrl" placeholder="http://your-domain.com" oninput="updateApiUrl()" style="padding: 0.5rem; font-size: 0.9rem;">
+                           </div>
+                           <div class="form-group" style="margin-bottom: 0;" title="Optional: Custom tag name for the channel ID (default: channel-id).">
+                               <label style="font-size: 0.8rem; margin-bottom: 0.25rem;">Channel ID Tag (Optional)</label>
+                               <input type="text" id="apiChannelIdTag" placeholder="channel-id" oninput="updateApiUrl()" style="padding: 0.5rem; font-size: 0.9rem;">
+                           </div>
+                       </div>
+                   </div>
+                </div>
+
+                <div class="api-url-container">
+                    <label>Generated URL</label>
+                    <div class="url-display-box">
+                        <code id="generatedApiUrl">https://...</code>
+                        <button class="btn-copy" onclick="copyApiUrl()">📋</button>
+                    </div>
+                </div>
+
+                <div class="modal-actions" style="margin-top: 1.5rem;">
+                    <button class="btn btn-secondary" onclick="closeApiBuilder()">Close</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Confirmation Modal -->
         <div class="modal" id="confirmationModal">
