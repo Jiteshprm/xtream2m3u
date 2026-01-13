@@ -1,3 +1,15 @@
+git clone https://github.com/Jiteshprm/xtream2m3u.git
+cd xtream2m3u
+git checkout addservice_bananapi
+python3 -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt 
 pip uninstall fake-useragent -y
 pip install fake-useragent==1.1.1
+
+python run.py --port 1234
+
+sudo systemctl stop xtream2m3u.service
+sudo systemctl start xtream2m3u.service
+sudo systemctl restart xtream2m3u.service
+sudo systemctl status xtream2m3u.service
