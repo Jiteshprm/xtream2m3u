@@ -1,0 +1,3 @@
+source venv/bin/activate
+pip uninstall fake-useragent -y
+pip install fake-useragent==1.1.1
