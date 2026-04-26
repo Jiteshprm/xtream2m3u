@@ -56,7 +56,7 @@ def fetch_api_data(url, timeout=10, max_retries=1):
                     if chunk:
                         chunks.append(chunk)
                         total_bytes += len(chunk)
-                        logger.debug(f"Received {total_bytes / 1024 / 1024:.1f} MB so far...")
+                        logger.info(f"Received {total_bytes / 1024 / 1024:.1f} MB so far...")
                 raw = b"".join(chunks)
                 logger.info(
                     f"Finished downloading {total_bytes / 1024 / 1024:.1f} MB from {hostname} with encoding '{encoding}'")
