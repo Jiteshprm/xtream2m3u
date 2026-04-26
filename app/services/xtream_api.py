@@ -12,8 +12,8 @@ from flask import request
 logger = logging.getLogger(__name__)
 
 
-def fetch_api_data(url, timeout=10, max_retries=1):
-    """Make a request to an API endpoint with retry logic"""
+def fetch_api_data(url, timeout=10, max_retries=5):
+    """Make a request to an API endpoint with retry logic and resume support"""
     ua = UserAgent()
     base_headers = {
         "User-Agent": ua.chrome,
@@ -23,7 +23,6 @@ def fetch_api_data(url, timeout=10, max_retries=1):
     }
 
     hostname = urllib.parse.urlparse(url).netloc.split(":")[0]
-    last_exception = None
     encodings_to_try = ["gzip, deflate", "identity"]
 
     for encoding in encodings_to_try:
@@ -33,53 +32,54 @@ def fetch_api_data(url, timeout=10, max_retries=1):
         curl_cmd = f'curl -s --max-time {timeout} {header_args} "{url}"'
         logger.info(f"Trying encoding '{encoding}'. Equivalent curl command:\n{curl_cmd}")
 
+        chunks = []
+        total_bytes = 0
+        last_exception = None
+        success = False
+
         for attempt in range(1, max_retries + 1):
             try:
-                logger.debug(f"Making request to host: {hostname} (attempt {attempt}/{max_retries})")
+                attempt_headers = {**headers}
+                if total_bytes > 0:
+                    attempt_headers["Range"] = f"bytes={total_bytes}-"
+                    logger.info(f"Resuming download from byte {total_bytes} (attempt {attempt}/{max_retries})")
+                else:
+                    logger.info(f"Making request to host: {hostname} (attempt {attempt}/{max_retries})")
 
-                # Short connect timeout, generous read timeout for slow servers
-                # None means wait forever for data between chunks
                 connect_timeout = min(timeout, 10)
-                read_timeout = None  # no read timeout — let slow servers finish
+                read_timeout = None
 
                 response = requests.get(
                     url,
-                    headers=headers,
+                    headers=attempt_headers,
                     timeout=(connect_timeout, read_timeout),
                     stream=True,
                 )
                 response.raise_for_status()
 
-                chunks = []
-                total_bytes = 0
                 for chunk in response.iter_content(chunk_size=65536):
                     if chunk:
                         chunks.append(chunk)
                         total_bytes += len(chunk)
                         logger.info(f"Received {total_bytes / 1024 / 1024:.1f} MB so far...")
-                raw = b"".join(chunks)
-                logger.info(
-                    f"Finished downloading {total_bytes / 1024 / 1024:.1f} MB from {hostname} with encoding '{encoding}'")
 
-                try:
-                    return json.loads(raw.decode("utf-8"))
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    return raw.decode("utf-8", errors="replace")
+                logger.info(f"Finished downloading {total_bytes / 1024 / 1024:.1f} MB from {hostname} with encoding '{encoding}'")
+                success = True
+                break
 
             except requests.exceptions.SSLError:
                 return {"error": "SSL Error", "details": "Failed to verify SSL certificate"}, 503
 
             except requests.exceptions.ChunkedEncodingError as e:
                 last_exception = e
-                logger.warning(
-                    f"Response ended prematurely on attempt {attempt}/{max_retries} with encoding '{encoding}': {e}")
+                logger.warning(f"Response ended prematurely on attempt {attempt}/{max_retries} with encoding '{encoding}' at {total_bytes / 1024 / 1024:.1f} MB: {e}")
                 if attempt < max_retries:
                     time.sleep(2 ** (attempt - 1))
                 continue
 
             except requests.exceptions.ConnectionError as e:
                 last_exception = e
-                logger.warning(f"Connection error on attempt {attempt}/{max_retries}: {e}")
+                logger.warning(f"Connection error on attempt {attempt}/{max_retries} at {total_bytes / 1024 / 1024:.1f} MB: {e}")
                 if attempt < max_retries:
                     time.sleep(2 ** (attempt - 1))
                 continue
@@ -95,7 +95,18 @@ def fetch_api_data(url, timeout=10, max_retries=1):
                 logger.error(f"RequestException (non-retryable): {e}")
                 return {"error": "Request Exception", "details": str(e)}, 503
 
-        logger.warning(f"All {max_retries} attempts failed with encoding '{encoding}', trying next encoding...")
+        if not success:
+            logger.warning(f"All {max_retries} attempts failed with encoding '{encoding}', trying next encoding...")
+            # Reset accumulated chunks before trying next encoding
+            chunks = []
+            total_bytes = 0
+            continue
+
+        raw = b"".join(chunks)
+        try:
+            return json.loads(raw.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return raw.decode("utf-8", errors="replace")
 
     logger.error(f"All encodings and retries exhausted for {hostname}: {last_exception}")
     return {"error": "Request Failed", "details": f"Failed after all attempts: {str(last_exception)}"}, 503
