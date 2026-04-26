@@ -12,44 +12,78 @@ from flask import request
 logger = logging.getLogger(__name__)
 
 
-def fetch_api_data(url, timeout=10):
-    """Make a request to an API endpoint"""
+def fetch_api_data(url, timeout=10, max_retries=3):
+    """Make a request to an API endpoint with retry logic"""
     ua = UserAgent()
-    headers = {
+    base_headers = {
         "User-Agent": ua.chrome,
         "Accept": "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
         "Connection": "close",
-        "Accept-Encoding": "gzip, deflate",
     }
 
-    try:
-        hostname = urllib.parse.urlparse(url).netloc.split(":")[0]
-        logger.debug(f"Making request to host: {hostname}")
+    hostname = urllib.parse.urlparse(url).netloc.split(":")[0]
+    last_exception = None
+    encodings_to_try = ["gzip, deflate, br", "identity"]
 
-        # Use fresh connection for each request to avoid stale connection issues
-        response = requests.get(url, headers=headers, timeout=timeout, stream=True)
-        response.raise_for_status()
+    for encoding in encodings_to_try:
+        headers = {**base_headers, "Accept-Encoding": encoding}
 
-        # For large responses, use streaming JSON parsing
-        try:
-            # Check content length to decide parsing strategy
-            content_length = response.headers.get('Content-Length')
-            if content_length and int(content_length) > 10_000_000:  # > 10MB
-                logger.info(f"Large response detected ({content_length} bytes), using optimized parsing")
+        # Log equivalent curl command for debugging
+        header_args = " ".join(f'-H "{k}: {v}"' for k, v in headers.items())
+        curl_cmd = f'curl -s --max-time {timeout} {header_args} "{url}"'
+        logger.info(f"Trying encoding '{encoding}'. Equivalent curl command:\n{curl_cmd}")
 
-            # Stream the JSON content for better memory efficiency
-            response.encoding = 'utf-8'  # Ensure proper encoding
-            return response.json()
-        except json.JSONDecodeError:
-            # Fallback to text for non-JSON responses
-            return response.text
+        for attempt in range(1, max_retries + 1):
+            try:
+                logger.debug(f"Making request to host: {hostname} (attempt {attempt}/{max_retries})")
 
-    except requests.exceptions.SSLError:
-        return {"error": "SSL Error", "details": "Failed to verify SSL certificate"}, 503
-    except requests.exceptions.RequestException as e:
-        logger.error(f"RequestException: {e}")
-        return {"error": "Request Exception", "details": str(e)}, 503
+                response = requests.get(url, headers=headers, timeout=timeout, stream=True)
+                response.raise_for_status()
+
+                chunks = []
+                for chunk in response.iter_content(chunk_size=65536):
+                    if chunk:
+                        chunks.append(chunk)
+                raw = b"".join(chunks)
+
+                try:
+                    return json.loads(raw.decode("utf-8"))
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    return raw.decode("utf-8", errors="replace")
+
+            except requests.exceptions.SSLError:
+                return {"error": "SSL Error", "details": "Failed to verify SSL certificate"}, 503
+
+            except requests.exceptions.ChunkedEncodingError as e:
+                last_exception = e
+                logger.warning(f"Response ended prematurely on attempt {attempt}/{max_retries} with encoding '{encoding}': {e}")
+                if attempt < max_retries:
+                    time.sleep(2 ** (attempt - 1))
+                continue
+
+            except requests.exceptions.ConnectionError as e:
+                last_exception = e
+                logger.warning(f"Connection error on attempt {attempt}/{max_retries}: {e}")
+                if attempt < max_retries:
+                    time.sleep(2 ** (attempt - 1))
+                continue
+
+            except requests.exceptions.Timeout as e:
+                last_exception = e
+                logger.warning(f"Timeout on attempt {attempt}/{max_retries}: {e}")
+                if attempt < max_retries:
+                    time.sleep(1)
+                continue
+
+            except requests.exceptions.RequestException as e:
+                logger.error(f"RequestException (non-retryable): {e}")
+                return {"error": "Request Exception", "details": str(e)}, 503
+
+        logger.warning(f"All {max_retries} attempts failed with encoding '{encoding}', trying next encoding...")
+
+    logger.error(f"All encodings and retries exhausted for {hostname}: {last_exception}")
+    return {"error": "Request Failed", "details": f"Failed after all attempts: {str(last_exception)}"}, 503
 
 
 def validate_xtream_credentials(url, username, password):
