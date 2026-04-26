@@ -12,7 +12,7 @@ from flask import request
 logger = logging.getLogger(__name__)
 
 
-def fetch_api_data(url, timeout=10, max_retries=3):
+def fetch_api_data(url, timeout=10, max_retries=1):
     """Make a request to an API endpoint with retry logic"""
     ua = UserAgent()
     base_headers = {
