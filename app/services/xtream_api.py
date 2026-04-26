@@ -34,9 +34,10 @@ def fetch_api_data(url, timeout=10, max_retries=3):
         curl_cmd = f'curl -s --max-time {timeout} {header_args} "{url}"'
         logger.info(f"Trying encoding '{encoding}'. Equivalent curl command:\n{curl_cmd}")
 
+        logger.info(f"Making request to host: {hostname} (max_retries {max_retries})")
         for attempt in range(1, max_retries + 1):
             try:
-                logger.debug(f"Making request to host: {hostname} (attempt {attempt}/{max_retries})")
+                logger.info(f"Making request to host: {hostname} (attempt {attempt}/{max_retries})")
 
                 response = requests.get(url, headers=headers, timeout=timeout, stream=True)
                 response.raise_for_status()
