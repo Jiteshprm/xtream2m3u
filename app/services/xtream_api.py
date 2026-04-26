@@ -24,7 +24,7 @@ def fetch_api_data(url, timeout=10, max_retries=3):
 
     hostname = urllib.parse.urlparse(url).netloc.split(":")[0]
     last_exception = None
-    encodings_to_try = ["gzip, deflate, br", "identity"]
+    encodings_to_try = ["gzip, deflate", "identity"]
 
     for encoding in encodings_to_try:
         headers = {**base_headers, "Accept-Encoding": encoding}
