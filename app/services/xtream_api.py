@@ -29,24 +29,37 @@ def fetch_api_data(url, timeout=10, max_retries=1):
     for encoding in encodings_to_try:
         headers = {**base_headers, "Accept-Encoding": encoding}
 
-        # Log equivalent curl command for debugging
         header_args = " ".join(f'-H "{k}: {v}"' for k, v in headers.items())
         curl_cmd = f'curl -s --max-time {timeout} {header_args} "{url}"'
         logger.info(f"Trying encoding '{encoding}'. Equivalent curl command:\n{curl_cmd}")
 
-        logger.info(f"Making request to host: {hostname} (max_retries {max_retries})")
         for attempt in range(1, max_retries + 1):
             try:
-                logger.info(f"Making request to host: {hostname} (attempt {attempt}/{max_retries})")
+                logger.debug(f"Making request to host: {hostname} (attempt {attempt}/{max_retries})")
 
-                response = requests.get(url, headers=headers, timeout=timeout, stream=True)
+                # Short connect timeout, generous read timeout for slow servers
+                # None means wait forever for data between chunks
+                connect_timeout = min(timeout, 10)
+                read_timeout = None  # no read timeout — let slow servers finish
+
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    timeout=(connect_timeout, read_timeout),
+                    stream=True,
+                )
                 response.raise_for_status()
 
                 chunks = []
+                total_bytes = 0
                 for chunk in response.iter_content(chunk_size=65536):
                     if chunk:
                         chunks.append(chunk)
+                        total_bytes += len(chunk)
+                        logger.debug(f"Received {total_bytes / 1024 / 1024:.1f} MB so far...")
                 raw = b"".join(chunks)
+                logger.info(
+                    f"Finished downloading {total_bytes / 1024 / 1024:.1f} MB from {hostname} with encoding '{encoding}'")
 
                 try:
                     return json.loads(raw.decode("utf-8"))
@@ -58,7 +71,8 @@ def fetch_api_data(url, timeout=10, max_retries=1):
 
             except requests.exceptions.ChunkedEncodingError as e:
                 last_exception = e
-                logger.warning(f"Response ended prematurely on attempt {attempt}/{max_retries} with encoding '{encoding}': {e}")
+                logger.warning(
+                    f"Response ended prematurely on attempt {attempt}/{max_retries} with encoding '{encoding}': {e}")
                 if attempt < max_retries:
                     time.sleep(2 ** (attempt - 1))
                 continue
